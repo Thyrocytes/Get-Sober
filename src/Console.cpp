@@ -13,6 +13,15 @@ Console* Console::get() {
     return &instance;
 }
 
+LONG WINAPI VectoredHandler(EXCEPTION_POINTERS* info) {
+    if (info->ExceptionRecord->ExceptionFlags & EXCEPTION_NONCONTINUABLE) {
+        auto exitPath = std::filesystem::path("/tmp/GeometryDash/console.exit");
+        auto exitRes = utils::file::writeString(exitPath, "");
+        if (!exitRes) log::error("Failed to create console exit file");
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
 void Console::setup() {
     sobriety::utils::createTempDir();
     if (Config::get()->hasConsole()) {
@@ -44,6 +53,8 @@ void Console::setup() {
             auto exitRes = utils::file::writeString(exitPath, "");
             if (!exitRes) return log::error("Failed to create console exit file");
         });
+
+        AddVectoredExceptionHandler(0, VectoredHandler);
     }
 }
 

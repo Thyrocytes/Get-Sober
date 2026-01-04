@@ -342,7 +342,12 @@ std::shared_ptr<PickerState> FileExplorer::getState() {
 
 std::vector<std::string> FileExplorer::generateExtensionStrings(const std::vector<utils::file::FilePickOptions::Filter>& filters) {
     std::vector<std::string> strings;
-    for (const auto& filter : filters) {
+
+    auto& _filters = const_cast<std::vector<utils::file::FilePickOptions::Filter>&>(filters);
+
+    _filters.push_back({"All Files", {"*.*"}});
+
+    for (const auto& filter : _filters) {
         std::string extStr = utils::string::trim(filter.description);
         extStr += "|";
         for (const auto& extension : filter.files) {
