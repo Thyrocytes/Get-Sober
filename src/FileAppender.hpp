@@ -1,12 +1,13 @@
 #pragma once
 
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <mutex>
 
 class FileAppender {
 public:
-    FileAppender(const std::string& path) {
+    FileAppender(const std::filesystem::path& path) {
         std::lock_guard lock(m_mtx);
         m_ofs.open(path, std::ios::out | std::ios::app);
     }

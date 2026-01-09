@@ -1,5 +1,6 @@
 #include <Geode/Geode.hpp>
 #include "Config.hpp"
+#include "Console.hpp"
 #include "Utils.hpp"
 
 using namespace geode::prelude;
@@ -12,6 +13,9 @@ Config* Config::get() {
 Config::Config() {
     m_geode = Loader::get()->getLoadedMod("geode.loader");
     m_mod = Mod::get();
+    auto now = std::chrono::system_clock::now();
+    auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    m_uniquePath = std::filesystem::path(fmt::format("/tmp/GeometryDash-{}/", nowMs));
 }
 
 Severity Config::getConsoleLogLevel() {
@@ -46,7 +50,65 @@ int Config::getFontSize() {
     return setting;
 }
 
+cocos2d::ccColor3B Config::getConsoleForegroundColor() {
+    static auto setting = m_mod->getSettingValue<ccColor3B>("console-foreground-color");
+    static auto listener = listenForSettingChanges("console-foreground-color", [this](ccColor3B value) {
+        setting = value;
+        Console::get()->setConsoleColors();
+    });
+    return setting;
+}
+
+cocos2d::ccColor3B Config::getConsoleBackgroundColor() {
+    static auto setting = m_mod->getSettingValue<ccColor3B>("console-background-color");
+    static auto listener = listenForSettingChanges("console-background-color", [this](ccColor3B value) {
+        setting = value;
+        Console::get()->setConsoleColors();
+    });
+    return setting;
+}
+
+cocos2d::ccColor3B Config::getLogInfoColor() {
+    static auto setting = m_mod->getSettingValue<ccColor3B>("console-log-info-color");
+    static auto listener = listenForSettingChanges("console-log-info-color", [this](ccColor3B value) {
+        setting = value;
+        Console::get()->setConsoleColors();
+    });
+    return setting;
+}
+
+cocos2d::ccColor3B Config::getLogWarnColor() {
+    static auto setting = m_mod->getSettingValue<ccColor3B>("console-log-warn-color");
+    static auto listener = listenForSettingChanges("console-log-warn-color", [this](ccColor3B value) {
+        setting = value;
+        Console::get()->setConsoleColors();
+    });
+    return setting;
+}
+
+cocos2d::ccColor3B Config::getLogErrorColor() {
+    static auto setting = m_mod->getSettingValue<ccColor3B>("console-log-error-color");
+    static auto listener = listenForSettingChanges("console-log-error-color", [this](ccColor3B value) {
+        setting = value;
+        Console::get()->setConsoleColors();
+    });
+    return setting;
+}
+
+cocos2d::ccColor3B Config::getLogDebugColor() {
+    static auto setting = m_mod->getSettingValue<ccColor3B>("console-log-debug-color");
+    static auto listener = listenForSettingChanges("console-log-debug-color", [this](ccColor3B value) {
+        setting = value;
+        Console::get()->setConsoleColors();
+    });
+    return setting;
+}
+
 bool Config::hasConsole() {
     static bool setting = m_geode->getSettingValue<bool>("show-platform-console");
     return setting;
+}
+
+const std::filesystem::path& Config::getUniquePath() {
+    return m_uniquePath;
 }

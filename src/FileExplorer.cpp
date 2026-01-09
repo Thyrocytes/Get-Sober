@@ -2,8 +2,8 @@
 #include <Geode/modify/CCTouchDispatcher.hpp>
 #include <Geode/modify/CCKeyboardDispatcher.hpp>
 #include <Geode/modify/CCMouseDispatcher.hpp>
-
 #include "FileExplorer.hpp"
+#include "Config.hpp"
 #include "FileWatcher.hpp"
 #include "Utils.hpp"
 
@@ -17,7 +17,7 @@ FileExplorer* FileExplorer::get() {
 void FileExplorer::setup() {
     sobriety::utils::createTempDir();
 
-    auto watcher = FileWatcher::getForDirectory("/tmp/GeometryDash");
+    auto watcher = FileWatcher::getForDirectory(Config::get()->getUniquePath());
     watcher->watch("selectedFile.txt", [this] {
         notifySelectedFileChange();
     });
@@ -84,7 +84,7 @@ Task<Result<std::vector<std::filesystem::path>>> file_pickMany_h(const utils::fi
 }
 
 /*
-    I can't lie, half of this script is AI assisted, it's so teadious...
+    I can't lie, half of this script is AI assisted, it's so tedious...
     It works and grabs the right *visible* default. Running GD through steam does block access to some files,
     meaning that it likely wont always grab the right default and falls back to GTK.
 */
@@ -92,7 +92,13 @@ void FileExplorer::setupScript() {
     static std::string script = 
 R"script(#!/bin/bash
 
-TMP="/tmp/GeometryDash/selectedFile.txt"
+export GTK_USE_PORTAL=1
+
+UNIQUE_PATH="$1"
+shift
+
+TMP="$UNIQUE_PATH/selectedFile.txt"
+
 > "$TMP"
 
 START_PATH="$1"
@@ -235,7 +241,7 @@ launch_picker &
         and properly bridge between some linux based script and wine.
     */
 
-    auto path = std::filesystem::path("/tmp/GeometryDash/openFile.exe");
+    auto path = Config::get()->getUniquePath() / "openFile.exe";
     auto res = utils::file::writeString(path, script);
     if (!res) return log::error("Failed to create openFile script");
 }
@@ -259,7 +265,13 @@ void FileExplorer::setupHooks() {
 }
 
 void FileExplorer::openFile(const std::string& startPath, PickMode pickMode, const std::vector<std::string>& filters) {
-    std::string command = "/tmp/GeometryDash/openFile.exe";
+    auto path = Config::get()->getUniquePath() / "openFile.exe";
+    
+    std::string command = utils::string::pathToString(path);
+
+    command += " \"";
+    command += utils::string::pathToString(Config::get()->getUniquePath());
+    command += "\"";
 
     command += " \"";
     command += startPath;
@@ -321,7 +333,7 @@ void FileExplorer::openFile(const std::string& startPath, PickMode pickMode, con
         command += "\"";
     }
 
-    sobriety::utils::runCommand(command.c_str());
+    sobriety::utils::runCommand(command);
 }
 
 bool FileExplorer::isPickerActive() {
@@ -358,7 +370,7 @@ std::vector<std::string> FileExplorer::generateExtensionStrings(std::vector<util
 }
 
 void FileExplorer::notifySelectedFileChange() {
-    const auto path = std::filesystem::path("/tmp/GeometryDash/selectedFile.txt");
+    auto path = Config::get()->getUniquePath() / "selectedFile.txt";
 
     auto strRes = utils::file::readString(path);
     if (!strRes) return;

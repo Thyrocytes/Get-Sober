@@ -5,7 +5,7 @@
 	},
 	"id": "alphalaneous.sobriety",
 	"name": "Sobriety",
-	"version": "v1.0.0-beta.4",
+	"version": "v1.0.0-beta.5",
 	"developer": "Alphalaneous",
 	"description": "No more Wine file explorer and console!",
 	"early-load": true,
@@ -18,16 +18,50 @@
         "enhancement", "interface"
     ],
 	"settings": {
+		"console-title": {
+			"type": "title",
+			"name": "Console"
+		},
 		"console-font-size": {
-			"name": "Console Font Size",
+			"name": "Font Size",
 			"type": "int",
 			"default": 10,
 			"min": 2,
 			"max": 72,
 			"requires-restart": true
 		},
+		"console-foreground-color": {
+			"name": "Foreground Color",
+			"type": "rgb",
+			"default": "#ffffff"
+		},
+		"console-background-color": {
+			"name": "Background Color",
+			"type": "rgb",
+			"default": "#000000"
+		},
+		"console-log-info-color": {
+			"name": "Info Log Color",
+			"type": "rgb",
+			"default": "#3487fa"
+		},
+		"console-log-warn-color": {
+			"name": "Warn Log Color",
+			"type": "rgb",
+			"default": "#fffd80"
+		},
+		"console-log-error-color": {
+			"name": "Error Log Color",
+			"type": "rgb",
+			"default": "#ff1d22"
+		},
+		"console-log-debug-color": {
+			"name": "Debug Log Color",
+			"type": "rgb",
+			"default": "#7a7a79"
+		},
 		"console-heartbeat-threshold": {
-			"name": "Console Heartbeat Threshold (ms)",
+			"name": "Heartbeat Threshold (ms)",
 			"description": "The amount of time between heartbeats checked, to know if the game should close due to the console closing. In milliseconds.",
 			"type": "int",
 			"default": 1000,

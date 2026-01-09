@@ -1,3 +1,10 @@
+# 1.0.0-beta.5
+- Exports GTK_USE_PORTAL=1 to open the system file portal
+- Adds custom console color options
+- Fixes console not closing on Geode Restart
+- Uses unique temp directory to prevent conflict with multiple instances of GD
+- General bug fixes and polish
+
 # 1.0.0-beta.4
 - Remove potentially unsafe std::atexit
 - Keep exit heartbeat on a separate thread to allow it to work if the game hangs

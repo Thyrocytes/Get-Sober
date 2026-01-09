@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Config.hpp"
 #include <Geode/loader/Log.hpp>
 #include <Geode/loader/Types.hpp>
 #include <filesystem>
@@ -23,10 +24,10 @@ namespace sobriety::utils {
     }
 
     static void createTempDir() {
-        auto path = std::filesystem::path("/tmp/GeometryDash/");
+        auto path = Config::get()->getUniquePath();
         if (!std::filesystem::exists(path)) {
             auto tmpDirRes = geode::utils::file::createDirectoryAll(path);
-            if (!tmpDirRes) return geode::log::error("Failed to create /tmp/GeometryDash/ directory");
+            if (!tmpDirRes) return geode::log::error("Failed to create {} directory", path);
         }
     }
 

@@ -1,8 +1,6 @@
 #include <Geode/Geode.hpp>
-#include <Geode/modify/CCDirector.hpp>
 #include "Console.hpp"
 #include "FileAppender.hpp"
-#include "Scheduler.hpp"
 #include "Utils.hpp"
 #include "Config.hpp"
 #include "FileWatcher.hpp"
@@ -16,7 +14,7 @@ Console* Console::get() {
 
 LONG WINAPI VectoredHandler(EXCEPTION_POINTERS* info) {
     if (info->ExceptionRecord->ExceptionFlags & EXCEPTION_NONCONTINUABLE) {
-        auto exitPath = std::filesystem::path("/tmp/GeometryDash/console.exit");
+        auto exitPath = Config::get()->getUniquePath() / "console.exit";
         auto exitRes = utils::file::writeString(exitPath, "");
         if (!exitRes) log::error("Failed to create console exit file");
     }
@@ -26,14 +24,7 @@ LONG WINAPI VectoredHandler(EXCEPTION_POINTERS* info) {
 void Console::setup() {
     sobriety::utils::createTempDir();
     if (Config::get()->hasConsole()) {
-        /*
-            this exit thing is what the console listens to to see if the game has closed, without it, it wont close alongside the game
-            brecause it isn't actually tied to it, but rather a separate process.
-        */
-        auto exitPath = std::filesystem::path("/tmp/GeometryDash/console.exit");
-        std::filesystem::remove(exitPath);
-
-        auto watcher = FileWatcher::getForDirectory("/tmp/GeometryDash");
+        auto watcher = FileWatcher::getForDirectory(Config::get()->getUniquePath());
         watcher->watch("console.heartbeat", [this] {
             setupHeartbeat();
         });
@@ -43,9 +34,30 @@ void Console::setup() {
         setupHooks();
 
         FreeConsole();
-        sobriety::utils::runCommand(fmt::format("/tmp/GeometryDash/openConsole.exe {}", Config::get()->getFontSize()).c_str());
+        sobriety::utils::runCommand(fmt::format("{}/openConsole.exe {} {} {} {}", Config::get()->getUniquePath(), 
+            Config::get()->getUniquePath(), 
+            Config::get()->getFontSize(), 
+            "#" + cc3bToHexString(Config::get()->getConsoleForegroundColor()), 
+            "#" + cc3bToHexString(Config::get()->getConsoleBackgroundColor())
+        ));
 
         AddVectoredExceptionHandler(0, VectoredHandler);
+    }
+}
+
+void Console::setConsoleColors() {
+
+    auto appender = Console::get()->getLogAppender();
+    if (appender) {
+        appender->append(fmt::format("\033]10;#{}\007", cc3bToHexString(Config::get()->getConsoleForegroundColor())));
+        appender->append(fmt::format("\033]11;#{}\007", cc3bToHexString(Config::get()->getConsoleBackgroundColor())));
+
+        appender->append(fmt::format("\033]4;33;#{}\007", cc3bToHexString(Config::get()->getLogInfoColor())));
+        appender->append(fmt::format("\033]4;229;#{}\007", cc3bToHexString(Config::get()->getLogWarnColor())));
+        appender->append(fmt::format("\033]4;9;#{}\007", cc3bToHexString(Config::get()->getLogErrorColor())));
+        appender->append(fmt::format("\033]4;243;#{}\007", cc3bToHexString(Config::get()->getLogDebugColor())));
+    
+        appender->append("\033[A\033[B"); // forces a refresh
     }
 }
 
@@ -95,8 +107,8 @@ void vlogImpl_h(Severity severity, Mod* mod, fmt::string_view format, fmt::forma
 
     size_t colorEnd = sv.find_first_of('[') - 1;
 
-    auto str = fmt::format("\x1b[38;5;{}m{}\x1b[0m{}\n", color, sv.substr(0, colorEnd), sv.substr(colorEnd));
-    
+    auto str = fmt::format("\033[38;5;{}m{}\033[0m{}\n", color, sv.substr(0, colorEnd), sv.substr(colorEnd));
+
     auto appender = Console::get()->getLogAppender();
     if (appender) appender->append(str);
 }
@@ -110,31 +122,36 @@ void Console::setupHooks() {
 }
 
 void Console::setupLogFile() {
-    auto path = std::filesystem::path("/tmp/GeometryDash/console.ansi");
+    auto path = Config::get()->getUniquePath() / "console.ansi";;
     auto res = utils::file::writeString(path, "");
     if (!res) return log::error("Failed to create console ansi file");
 
-    m_logAppender = std::make_shared<FileAppender>("/tmp/GeometryDash/console.ansi");
+    m_logAppender = std::make_shared<FileAppender>(path);
 }
 
 void Console::setupScript() {
     static std::string script = 
 R"script(#!/bin/bash
 
-FONT_SIZE="${1:-10}"
+UNIQUE_PATH="${1}"
+FONT_SIZE="${2:-10}"
+FG_COLOR="${3:-#ffffff}"
+BG_COLOR="${4:-#000000}"
 
-xterm \
-  -fa Monospace \
-  -bg black -fg white \
+CONSOLE_FILE="$UNIQUE_PATH/console.ansi"
+HEARTBEAT_FILE="$UNIQUE_PATH/console.heartbeat"
+EXIT_FILE="$UNIQUE_PATH/console.exit"
+
+/usr/bin/xterm \
+  -fa "Monospace" \
+  -bg "$BG_COLOR" \
+  -fg "$FG_COLOR" \
   -T "Geometry Dash" \
   -fs "$FONT_SIZE" \
   -xrm "XTerm*VT100.Translations: #override Ctrl Shift <Key>C: copy-selection(CLIPBOARD)" \
-  -e tail -F /tmp/GeometryDash/console.ansi &
+  -e tail -F "$CONSOLE_FILE" &
 
 TERM_PID=$!
-
-HEARTBEAT_FILE="/tmp/GeometryDash/console.heartbeat"
-EXIT_FILE="/tmp/GeometryDash/console.exit"
 
 while [ ! -f "$EXIT_FILE" ]; do
     if ! kill -0 "$TERM_PID" 2>/dev/null; then
@@ -150,46 +167,48 @@ rm -f "$EXIT_FILE"
 
 )script";
 
-    auto path = std::filesystem::path("/tmp/GeometryDash/openConsole.exe");
+    auto path = Config::get()->getUniquePath() / "openConsole.exe";
     auto res = utils::file::writeString(path, script);
     if (!res) return log::error("Failed to create openConsole script");
 }
 
 void Console::setupHeartbeat() {
     if (!m_hearbeatActive) {
-            std::thread([] {
-                auto heartbeatPath = std::filesystem::path("/tmp/GeometryDash/console.heartbeat");
-                while (true) {
-                    auto strRes = utils::file::readString(heartbeatPath);
-                    if (!strRes) {
-                        continue;
-                    } 
+        setConsoleColors();
 
-                    auto str = strRes.unwrap();
-                    utils::string::trimIP(str);
+        std::thread([] {
+            auto heartbeatPath = Config::get()->getUniquePath() / "console.heartbeat";
+            while (true) {
+                auto strRes = utils::file::readString(heartbeatPath);
+                if (!strRes) {
+                    continue;
+                } 
 
-                    auto millisRes = numFromString<long long>(str);
+                auto str = strRes.unwrap();
+                utils::string::trimIP(str);
 
-                    if (!millisRes) {
-                        continue;
-                    }
+                auto millisRes = numFromString<long long>(str);
 
-                    auto millis = millisRes.unwrap();
-
-                    auto now = std::chrono::system_clock::now();
-                    auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        now.time_since_epoch()
-                    ).count();
-
-                    if (nowMs - millis > Config::get()->getHeartbeatThreshold()) {
-                        queueInMainThread([] {
-                            utils::game::exit(false);
-                            Scheduler::get()->unschedule("console-heartbeat");
-                        });
-                    }
-                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                if (!millisRes) {
+                    continue;
                 }
-            }).detach();
+
+                auto millis = millisRes.unwrap();
+
+                auto now = std::chrono::system_clock::now();
+                auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now.time_since_epoch()
+                ).count();
+
+                if (nowMs - millis > Config::get()->getHeartbeatThreshold()) {
+                    queueInMainThread([] {
+                        utils::game::exit(false);
+                    });
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            }
+        }).detach();
         m_hearbeatActive = true;
     }
 }
@@ -235,17 +254,3 @@ std::string Console::buildLog(const Log& log) {
 std::shared_ptr<FileAppender> Console::getLogAppender() {
     return m_logAppender;
 }
-
-class $modify(CCDirector) {
-
-    void purgeDirector() {
-        /*
-            if this fails, the console wont exit, it shouldn't fail, but if it does, it isn't a big deal, as the user can close it themselves still
-            imo a skill issue if writing to /tmp fails for any of these.
-        */
-        auto exitPath = std::filesystem::path("/tmp/GeometryDash/console.exit");
-        auto exitRes = utils::file::writeString(exitPath, "");
-        if (!exitRes) return log::error("Failed to create console exit file");
-        CCDirector::purgeDirector();
-    }
-};

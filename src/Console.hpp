@@ -24,6 +24,7 @@ public:
     void setupScript();
     void setupLogFile();
     void setupHeartbeat();
+    void setConsoleColors();
     std::string buildLog(const Log& log);
     std::shared_ptr<FileAppender> getLogAppender();
 
