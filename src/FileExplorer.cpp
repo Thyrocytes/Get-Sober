@@ -420,12 +420,12 @@ class $modify(CCTouchDispatcher) {
 };
 
 class $modify(CCKeyboardDispatcher) {
-    bool dispatchKeyboardMSG(enumKeyCodes key, bool isKeyDown, bool isKeyRepeat) {
+    bool dispatchKeyboardMSG(enumKeyCodes key, bool isKeyDown, bool isKeyRepeat, double t) {
         if (FileExplorer::get()->isPickerActive()) {
             if (isKeyDown && !isKeyRepeat) MessageBeep(MB_ICONWARNING);
             return false;
         }
-        return CCKeyboardDispatcher::dispatchKeyboardMSG(key, isKeyDown, isKeyRepeat);
+        return CCKeyboardDispatcher::dispatchKeyboardMSG(key, isKeyDown, isKeyRepeat, t);
     }
 };
 

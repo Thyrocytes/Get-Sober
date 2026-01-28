@@ -12,13 +12,14 @@ Console* Console::get() {
     return &instance;
 }
 
-LONG WINAPI VectoredHandler(EXCEPTION_POINTERS* info) {
-    if (info->ExceptionRecord->ExceptionFlags & EXCEPTION_NONCONTINUABLE) {
-        auto exitPath = Config::get()->getUniquePath() / "console.exit";
-        auto exitRes = utils::file::writeString(exitPath, "");
-        if (!exitRes) log::error("Failed to create console exit file");
-    }
-    return EXCEPTION_CONTINUE_SEARCH;
+static LONG WINAPI exceptionHandler(LPEXCEPTION_POINTERS info) {
+    auto exitPath = Config::get()->getUniquePath() / "console.exit";
+    auto res = utils::file::writeString(exitPath, "");
+    if (!res) log::error("Failed to create console exit file");
+
+    auto originalUEF = Console::get()->getOriginalUEF();
+
+    return originalUEF ? originalUEF(info) : EXCEPTION_CONTINUE_SEARCH;
 }
 
 void Console::setup() {
@@ -41,8 +42,12 @@ void Console::setup() {
             "#" + cc3bToHexString(Config::get()->getConsoleBackgroundColor())
         ));
 
-        AddVectoredExceptionHandler(0, VectoredHandler);
+        m_originalUEF = SetUnhandledExceptionFilter(exceptionHandler);
     }
+}
+
+LPTOP_LEVEL_EXCEPTION_FILTER Console::getOriginalUEF() {
+    return m_originalUEF;
 }
 
 void Console::setConsoleColors() {

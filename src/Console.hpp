@@ -27,8 +27,10 @@ public:
     void setConsoleColors();
     std::string buildLog(const Log& log);
     std::shared_ptr<FileAppender> getLogAppender();
+    LPTOP_LEVEL_EXCEPTION_FILTER getOriginalUEF();
 
 private:
     bool m_hearbeatActive;
+    LPTOP_LEVEL_EXCEPTION_FILTER m_originalUEF;
     std::shared_ptr<FileAppender> m_logAppender;
 };

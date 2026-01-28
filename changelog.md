@@ -1,3 +1,7 @@
+# 1.0.0-beta.6
+- 2.2081 support
+- Fix console showing after crash
+
 # 1.0.0-beta.5
 - Exports GTK_USE_PORTAL=1 to open the system file portal
 - Adds custom console color options
